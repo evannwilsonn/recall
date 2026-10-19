@@ -114,8 +114,26 @@ textarea {
 }
 textarea:focus { outline: none; border-bottom-color: var(--stamp) }
 
-.intake { display: grid; gap: 26px }
-.intro { max-width: 640px }
+.intake { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 40px; align-items: start }
+.intro { max-width: 640px; padding-top: 8px }
+.call-no { display: inline-block; color: var(--stamp); border: 1.5px solid var(--stamp); padding: 2px 8px; margin: 0 0 16px; font-size: 0.78rem; letter-spacing: 0.1em }
+.steps { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 12px }
+.step { display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; column-gap: 12px; background: var(--card); border: 1px solid var(--card-edge); border-top: 3px solid var(--head-rule); border-radius: 3px; padding: 10px 14px; box-shadow: var(--lift); transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1) }
+.step:nth-child(1) { transform: rotate(-1deg) }
+.step:nth-child(2) { transform: rotate(0.7deg) translateX(10px) }
+.step:nth-child(3) { transform: rotate(-0.4deg) translateX(4px) }
+.step:hover { transform: rotate(0) translateX(0) }
+.step .mono { grid-row: 1 / 3; color: var(--muted); align-self: center }
+.step b { font-family: var(--display); font-size: 1.05rem }
+.step span:last-child { color: var(--muted); font-size: 0.92rem; line-height: 1.4 }
+
+.cabinet { position: relative; padding-top: 0 }
+.drawer-front { position: relative; height: 70px; border-radius: 6px 6px 0 0; background: linear-gradient(var(--oak-light), var(--oak)); box-shadow: inset 0 -8px 14px rgba(0, 0, 0, 0.25), var(--lift); display: flex; align-items: center; justify-content: center; gap: 22px }
+.drawer-front::before { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(0, 0, 0, 0.22); border-radius: 4px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) }
+.label-holder { position: relative; padding: 5px; border-radius: 3px; background: linear-gradient(#d9bd84, var(--brass)); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) }
+.label-holder span { display: block; background: #f6edd6; color: #3a2a14; font: 700 0.72rem var(--type); text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 12px }
+.pull { position: relative; width: 58px; height: 16px; border-radius: 0 0 14px 14px; background: linear-gradient(#d9bd84, #8d6d38); box-shadow: 0 2px 3px rgba(0, 0, 0, 0.45) }
+.cabinet .notes { border-top: 0; border-radius: 0 0 4px 4px; margin: 0 10px; transform: translateY(-2px) }
 .intro h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.08; margin-bottom: 14px }
 .notes .label { line-height: 38px; margin-bottom: 12px }
 .notes textarea { background-image: repeating-linear-gradient(transparent 0, transparent 25px, var(--rule) 25px, var(--rule) 26px); line-height: 26px; min-height: 300px; border: 0 }
@@ -130,16 +148,31 @@ textarea:focus { outline: none; border-bottom-color: var(--stamp) }
 .drawer .fill { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--brass); transition: width 0.6s cubic-bezier(0.32, 0.72, 0, 1) }
 
 .study { display: grid; gap: 0 }
+.desk-row { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 22px; align-items: start }
+.slip { position: relative; background: #f3ead2; color: #2a221b; border: 1px solid #d8c79d; border-radius: 2px; padding: 34px 14px 16px; box-shadow: var(--lift); transform: rotate(1.2deg); min-height: 320px;
+  background-image: repeating-linear-gradient(transparent 0, transparent 27px, rgba(92, 140, 178, 0.28) 27px, rgba(92, 140, 178, 0.28) 28px); background-position: 0 58px }
+:root[data-theme="dark"] .slip { background-color: #e9dfc4; filter: brightness(0.86) }
+.slip-pocket { position: absolute; left: -1px; right: -1px; top: -14px; height: 28px; background: #d9c597; border: 1px solid #c4ae7c; border-radius: 0 0 6px 6px; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%) }
+.slip h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.3em; text-align: center; margin: 0 0 10px; color: #6a5b4a }
+.slip ol { list-style: none; margin: 0; padding: 0; display: grid }
+.slip li { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "turn stamp" "no stamp"; align-items: center; column-gap: 8px; height: 56px; border-bottom: 1px solid transparent; font-size: 0.78rem }
+.slip li > :nth-child(1) { grid-area: turn; color: #6a5b4a }
+.slip li > :nth-child(2) { grid-area: no; color: #6a5b4a }
+.stamp-mini { grid-area: stamp; justify-self: end; font: 700 0.72rem var(--type); text-transform: uppercase; letter-spacing: 0.08em; border: 2px solid currentColor; border-radius: 3px; padding: 2px 6px; transform: rotate(-6deg); color: #b4362b; opacity: 0.85 }
+.s-right .stamp-mini { color: #2f6b45; transform: rotate(4deg) }
+.s-partly .stamp-mini { color: #9a5e12; transform: rotate(-2deg) }
+.slip .blank { display: block; height: auto; padding: 8px 0; color: #6a5b4a; text-align: center }
 .index-card { min-height: 320px }
 .card-head { display: flex; justify-content: space-between; color: var(--muted); height: 38px; align-items: center }
 .prompt { font-family: var(--type); font-weight: 700; font-size: clamp(1.15rem, 2.6vw, 1.45rem); line-height: 32px; margin: 18px 0 18px }
 .index-card .row { margin-top: 4px }
 
-.result { position: relative; padding-top: 4px }
+.result { position: static; padding-top: 4px }
+.index-card:has(#graded) .card-head span:last-child { visibility: hidden }
 .result p { margin: 0 0 12px; font-family: var(--type); line-height: 32px }
 .result .label { display: inline; margin-right: 8px }
 .rubber {
-  position: absolute; right: 0; top: -70px; font: 700 1.25rem var(--type); text-transform: uppercase; letter-spacing: 0.14em;
+  position: absolute; right: 22px; top: 10px; font: 700 1.25rem var(--type); text-transform: uppercase; letter-spacing: 0.14em;
   color: var(--stamp); border: 3px double currentColor; border-radius: 6px; padding: 4px 14px; transform: rotate(-8deg);
   opacity: 0.88; mix-blend-mode: multiply; animation: thump 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -163,12 +196,18 @@ textarea:focus { outline: none; border-bottom-color: var(--stamp) }
 .ledger tr.shipped td { font-weight: 600; background: rgba(184, 149, 90, 0.16) }
 .foot { margin-top: 40px; font-size: 0.88rem; color: var(--muted) }
 
+@media (max-width: 900px) {
+  .intake { grid-template-columns: minmax(0, 1fr) }
+  .desk-row { grid-template-columns: minmax(0, 1fr) }
+  .slip { transform: none; min-height: 0 }
+  .slip ol { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); column-gap: 12px }
+}
 @media (max-width: 640px) {
   .desk { padding: 14px 16px 40px }
   .tag-line { display: none }
   .drawers { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .card { padding: 14px 16px 20px }
-  .rubber { top: -56px; font-size: 1rem }
+  .rubber { top: 8px; right: 12px; font-size: 1rem }
   .ledger { font-size: 0.82rem }
   .ledger th, .ledger td { padding: 6px 4px }
 }

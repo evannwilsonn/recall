@@ -20,7 +20,7 @@ COPY assets assets
 RUN mix compile && mix assets.deploy
 
 # Fetch MiniLM's weights and tokenizer now, so the running app never needs the network.
-RUN mix run --no-start -e 'Application.ensure_all_started(:bumblebee); {:ok, _} = Bumblebee.load_model({:hf, "sentence-transformers/all-MiniLM-L6-v2"}); {:ok, _} = Bumblebee.load_tokenizer({:hf, "sentence-transformers/all-MiniLM-L6-v2"})'
+RUN mix run --no-start -e 'Application.ensure_all_started([:exla, :bumblebee]); {:ok, _} = Bumblebee.load_model({:hf, "sentence-transformers/all-MiniLM-L6-v2"}); {:ok, _} = Bumblebee.load_tokenizer({:hf, "sentence-transformers/all-MiniLM-L6-v2"})'
 
 COPY config/runtime.exs config/
 COPY rel rel

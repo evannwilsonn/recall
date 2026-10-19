@@ -40,6 +40,7 @@ defmodule RecallWeb.StudyLive do
         grading: false,
         error: nil,
         answer_key: 0,
+        log: [],
         eval: eval()
       )
 
@@ -103,7 +104,7 @@ defmodule RecallWeb.StudyLive do
   def handle_event("new", _, socket) do
     {:noreply,
      socket
-     |> assign(deck: nil, card: nil, graded: nil, revealed: false, writer: nil)
+     |> assign(deck: nil, card: nil, graded: nil, revealed: false, writer: nil, log: [])
      |> push_event("save", %{deck: nil})}
   end
 
@@ -165,8 +166,11 @@ defmodule RecallWeb.StudyLive do
     do: {:noreply, assign(socket, grading: false, error: "The grader didn't answer. Try again.")}
 
   defp record(socket, band) do
+    deck = Deck.record(socket.assigns.deck, socket.assigns.card.id, band)
+    entry = %{turn: deck.turn, id: socket.assigns.card.id, band: band}
+
     socket
-    |> assign(deck: Deck.record(socket.assigns.deck, socket.assigns.card.id, band))
+    |> assign(deck: deck, log: Enum.take([entry | socket.assigns.log], 9))
     |> save()
   end
 
@@ -211,127 +215,180 @@ defmodule RecallWeb.StudyLive do
         <%= if @deck == nil do %>
           <section class="intake">
             <div class="intro">
+              <p class="call-no mono">QA 76.9 · R43 · 2026</p>
               <h1>Study what you actually wrote down.</h1>
               <p>
-                Paste notes from a lecture or a chapter. Recall writes questions from them, you
-                answer in your own words, and it grades you against the notes. Cards you miss
-                come back sooner; cards you know move up a drawer and retire.
+                Paste notes from a lecture or a chapter. Recall files them as question cards, you
+                answer in your own words, and it grades you against the notes.
               </p>
+              <ol class="steps">
+                <li class="step">
+                  <span class="mono">No. 1</span><b>Paste your notes</b><span>Llama on Groq writes questions from them, and only them.</span>
+                </li>
+                <li class="step">
+                  <span class="mono">No. 2</span><b>Answer in your words</b><span>MiniLM, running in Elixir, grades the meaning.</span>
+                </li>
+                <li class="step">
+                  <span class="mono">No. 3</span><b>Misses come back</b><span>Right answers move up a drawer until they retire.</span>
+                </li>
+              </ol>
             </div>
-            <form id="notes-form" class="card notes" phx-change="notes" phx-submit="write">
-              <label for="notes-text" class="label">Your notes</label>
-              <textarea
-                id="notes-text"
-                name="notes"
-                maxlength={Writer.max_notes()}
-                rows="14"
-                placeholder="Paste a page or two of notes…"
-                phx-debounce="400"
-              >{@notes}</textarea>
-              <div class="row">
-                <button id="sample" type="button" class="ghost" phx-click="sample">Use sample notes (hash tables)</button>
-                <span class="count mono">{String.length(@notes)} / {Writer.max_notes()}</span>
+            <div class="cabinet">
+              <div class="drawer-front" aria-hidden="true">
+                <span class="label-holder"><span>Notes · unfiled</span></span>
+                <span class="pull"></span>
               </div>
-              <p :if={@error} id="error" class="error" role="alert">{@error}</p>
-              <button id="write" class="stamp-btn" disabled={@writing}>{if @writing,
-                do: "Writing cards…",
-                else: "Make my cards"}</button>
-            </form>
+              <form id="notes-form" class="card notes" phx-change="notes" phx-submit="write">
+                <label for="notes-text" class="label">Your notes</label>
+                <textarea
+                  id="notes-text"
+                  name="notes"
+                  maxlength={Writer.max_notes()}
+                  rows="12"
+                  placeholder="Paste a page or two of notes…"
+                  phx-debounce="400"
+                >{@notes}</textarea>
+                <div class="row">
+                  <button id="sample" type="button" class="ghost" phx-click="sample">
+                    Use sample notes (hash tables)
+                  </button>
+                  <span class="count mono">{String.length(@notes)} / {Writer.max_notes()}</span>
+                </div>
+                <p :if={@error} id="error" class="error" role="alert">{@error}</p>
+                <button id="write" class="stamp-btn" disabled={@writing}>
+                  {if @writing, do: "Writing cards…", else: "File my cards"}
+                </button>
+              </form>
+            </div>
           </section>
         <% else %>
           <section class="study">
             <.drawers deck={@deck} />
-
-            <%= if @card do %>
-              <article id="card" class="card index-card">
-                <div class="card-head">
-                  <span class="mono">No. {@card.id}</span>
-                  <span class="mono">drawer {@card.box} · seen {@card.seen}</span>
-                </div>
-                <h2 class="prompt">{@card.prompt}</h2>
-
-                <%= cond do %>
-                  <% @graded -> %>
-                    <div id="graded" class={"result b-#{@graded.band}"}>
-                      <span class="rubber">{band_label(@graded.band)}</span>
-                      <p class="yours">
-                        <span class="label">You wrote</span> {if @graded.answer == "",
-                          do: "(nothing)",
-                          else: @graded.answer}
-                      </p>
-                      <p class="model"><span class="label">From your notes</span> {@card.answer}</p>
-                      <p :if={@graded.missing != [] and @graded.band != :right} class="missing">
-                        <span class="label">Words you left out</span>
-                        <span :for={w <- @graded.missing} class="chip">{w}</span>
-                      </p>
-                      <p class="mono score">
-                        score {:erlang.float_to_binary(@graded.score, decimals: 1)} / 5 · meaning {pct(
-                          @graded.similarity
-                        )} · words {pct(@graded.coverage)}
-                      </p>
-                      <div class="row">
-                        <button id="next" class="stamp-btn" phx-click="next" phx-mounted={JS.focus()}>Next card</button>
-                        <button
-                          :if={@graded.band != :right}
-                          id="overrule"
-                          class="ghost"
-                          phx-click="self"
-                          phx-value-band="right"
-                        >
-                          I was right
-                        </button>
-                      </div>
+            <div class="desk-row">
+              <div class="card-col">
+                <%= if @card do %>
+                  <article id="card" class="card index-card">
+                    <div class="card-head">
+                      <span class="mono">No. {@card.id}</span>
+                      <span class="mono">drawer {@card.box} · seen {@card.seen}</span>
                     </div>
-                  <% @revealed -> %>
-                    <div id="revealed" class="result">
-                      <p class="model"><span class="label">From your notes</span> {@card.answer}</p>
-                      <p class="label">How did you do?</p>
-                      <div class="row self">
-                        <button id="self-right" class="ghost" phx-click="self" phx-value-band="right">Knew it</button>
-                        <button
-                          id="self-partly"
-                          class="ghost"
-                          phx-click="self"
-                          phx-value-band="partly"
-                        >Partly</button>
-                        <button id="self-not" class="ghost" phx-click="self" phx-value-band="not_yet">Not yet</button>
-                      </div>
-                    </div>
-                  <% true -> %>
-                    <form id="answer-form" phx-submit="answer">
-                      <label for={"answer-#{@answer_key}"} class="label">Your answer</label>
-                      <textarea
-                        id={"answer-#{@answer_key}"}
-                        name="answer"
-                        rows="3"
-                        maxlength="1000"
-                        placeholder="In your own words…"
-                        phx-mounted={JS.focus()}
-                      ></textarea>
-                      <div class="row">
-                        <button id="check" class="stamp-btn" disabled={@grading}>{if @grading,
-                          do: "Grading…",
-                          else: "Check my answer"}</button>
-                        <button id="reveal" type="button" class="ghost" phx-click="reveal">Just show me</button>
-                      </div>
-                    </form>
+                    <h2 class="prompt">{@card.prompt}</h2>
+
+                    <%= cond do %>
+                      <% @graded -> %>
+                        <div id="graded" class={"result b-#{@graded.band}"}>
+                          <span class="rubber">{band_label(@graded.band)}</span>
+                          <p class="yours">
+                            <span class="label">You wrote</span> {if @graded.answer == "",
+                              do: "(nothing)",
+                              else: @graded.answer}
+                          </p>
+                          <p class="model">
+                            <span class="label">From your notes</span> {@card.answer}
+                          </p>
+                          <p :if={@graded.missing != [] and @graded.band != :right} class="missing">
+                            <span class="label">Words you left out</span>
+                            <span :for={w <- @graded.missing} class="chip">{w}</span>
+                          </p>
+                          <p class="mono score">
+                            score {:erlang.float_to_binary(@graded.score, decimals: 1)} / 5 · meaning {pct(
+                              @graded.similarity
+                            )} · words {pct(@graded.coverage)}
+                          </p>
+                          <div class="row">
+                            <button
+                              id="next"
+                              class="stamp-btn"
+                              phx-click="next"
+                              phx-mounted={JS.focus()}
+                            >Next card</button>
+                            <button
+                              :if={@graded.band != :right}
+                              id="overrule"
+                              class="ghost"
+                              phx-click="self"
+                              phx-value-band="right"
+                            >
+                              I was right
+                            </button>
+                          </div>
+                        </div>
+                      <% @revealed -> %>
+                        <div id="revealed" class="result">
+                          <p class="model">
+                            <span class="label">From your notes</span> {@card.answer}
+                          </p>
+                          <p class="label">How did you do?</p>
+                          <div class="row self">
+                            <button
+                              id="self-right"
+                              class="ghost"
+                              phx-click="self"
+                              phx-value-band="right"
+                            >Knew it</button>
+                            <button
+                              id="self-partly"
+                              class="ghost"
+                              phx-click="self"
+                              phx-value-band="partly"
+                            >Partly</button>
+                            <button
+                              id="self-not"
+                              class="ghost"
+                              phx-click="self"
+                              phx-value-band="not_yet"
+                            >Not yet</button>
+                          </div>
+                        </div>
+                      <% true -> %>
+                        <form id="answer-form" phx-submit="answer">
+                          <label for={"answer-#{@answer_key}"} class="label">Your answer</label>
+                          <textarea
+                            id={"answer-#{@answer_key}"}
+                            name="answer"
+                            rows="3"
+                            maxlength="1000"
+                            placeholder="In your own words…"
+                            phx-mounted={JS.focus()}
+                          ></textarea>
+                          <div class="row">
+                            <button id="check" class="stamp-btn" disabled={@grading}>{if @grading,
+                              do: "Grading…",
+                              else: "Check my answer"}</button>
+                            <button id="reveal" type="button" class="ghost" phx-click="reveal">Just show me</button>
+                          </div>
+                        </form>
+                    <% end %>
+
+                    <blockquote :if={@card.quote && (@graded || @revealed)} class="quote">
+                      “{@card.quote}”
+                    </blockquote>
+                  </article>
+                <% else %>
+                  <article id="done" class="card index-card done">
+                    <span class="rubber">Learned</span>
+                    <h2 class="prompt">
+                      All {length(@deck.cards)} cards learned in {@deck.turn} answers.
+                    </h2>
+                    <p>
+                      Each card had to be answered right three times, with other cards in between, to retire.
+                    </p>
+                  </article>
                 <% end %>
-
-                <blockquote :if={@card.quote && (@graded || @revealed)} class="quote">
-                  “{@card.quote}”
-                </blockquote>
-              </article>
-            <% else %>
-              <article id="done" class="card index-card done">
-                <span class="rubber">Learned</span>
-                <h2 class="prompt">
-                  All {length(@deck.cards)} cards learned in {@deck.turn} answers.
-                </h2>
-                <p>
-                  Each card had to be answered right three times, with other cards in between, to retire.
-                </p>
-              </article>
-            <% end %>
+              </div>
+              <aside id="slip" class="slip" aria-label="Date due slip: your answers so far">
+                <span class="slip-pocket" aria-hidden="true"></span>
+                <h3 class="mono">Date due</h3>
+                <ol>
+                  <li :for={e <- @log} class={"s-#{e.band}"}>
+                    <span class="mono">turn {e.turn}</span>
+                    <span class="mono">No. {e.id}</span>
+                    <span class="stamp-mini">{band_label(e.band)}</span>
+                  </li>
+                  <li :if={@log == []} class="blank mono">no answers yet</li>
+                </ol>
+              </aside>
+            </div>
 
             <div class="row foot-row">
               <span class="writer mono">{writer_label(@writer)}</span>
