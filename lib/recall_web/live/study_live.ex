@@ -223,7 +223,7 @@ defmodule RecallWeb.StudyLive do
               </p>
               <ol class="steps">
                 <li class="step">
-                  <span class="mono">No. 1</span><b>Paste your notes</b><span>Llama on Groq writes questions from them, and only them.</span>
+                  <span class="mono">No. 1</span><b>Paste your notes</b><span>An open model on Groq writes questions from them, and only them.</span>
                 </li>
                 <li class="step">
                   <span class="mono">No. 2</span><b>Answer in your words</b><span>MiniLM, running in Elixir, grades the meaning.</span>
@@ -482,7 +482,7 @@ defmodule RecallWeb.StudyLive do
   defp band_label(:partly), do: "Partly"
   defp band_label(:not_yet), do: "Not yet"
 
-  defp writer_label("groq"), do: "questions written by Llama 3.3 on Groq, from your notes"
+  defp writer_label("groq"), do: "questions written by gpt-oss-120b on Groq, from your notes"
   defp writer_label(_), do: "questions made from your notes' own sentences"
 
   defp pct(nil), do: "–"

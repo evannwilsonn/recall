@@ -3,12 +3,14 @@ defmodule Recall.Writer do
   Turns notes into study cards: `%{id, prompt, answer, quote}`, where `quote` is the sentence of
   the notes the card comes from.
 
-  With a `GROQ_API_KEY`, a Llama model on Groq writes them, told to use only what the notes say.
+  With a `GROQ_API_KEY`, an open model on Groq (gpt-oss-120b by default) writes them, told to use only what the notes say.
   Its reply is checked: the shape has to be right, and a quote it claims must really be in the
   notes, or the quote is dropped. Without a key, or if Groq fails, a plain-Elixir writer makes
   cards from the notes' own sentences: "What is X?" from sentences that define something, and
   fill-in-the-gap from the rest.
   """
+
+  require Logger
 
   @max_notes 12_000
   @max_cards 12
@@ -52,9 +54,12 @@ defmodule Recall.Writer do
 
   defp groq(notes, key) do
     body = %{
-      model: System.get_env("GROQ_MODEL", "llama-3.3-70b-versatile"),
+      # Llama 3.3 70B, the first choice, was retired by Groq in August 2026.
+      model: System.get_env("GROQ_MODEL", "openai/gpt-oss-120b"),
       temperature: 0.3,
-      max_tokens: 2_000,
+      # gpt-oss thinks before it answers; keep that short and leave room for the cards.
+      reasoning_effort: "low",
+      max_completion_tokens: 6_000,
       response_format: %{type: "json_object"},
       messages: [
         %{role: "system", content: @prompt},
@@ -73,10 +78,19 @@ defmodule Recall.Writer do
         with {:ok, %{"cards" => cards}} when is_list(cards) <- Jason.decode(content) do
           {:ok, cards |> Enum.map(&clean(&1, notes)) |> Enum.reject(&is_nil/1)}
         else
-          _ -> :error
+          _ ->
+            Logger.warning("Groq replied, but not with cards; writing them locally")
+            :error
         end
 
-      _ ->
+      # Logged without the request, so the key never reaches the logs.
+      {:ok, %{status: status, body: body}} ->
+        message = (is_map(body) && get_in(body, ["error", "message"])) || "no message"
+        Logger.warning("Groq answered #{status} (#{message}); writing cards locally")
+        :error
+
+      {:error, reason} ->
+        Logger.warning("Groq unreachable (#{Exception.message(reason)}); writing cards locally")
         :error
     end
   end

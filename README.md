@@ -1,6 +1,6 @@
 # Recall
 
-Paste your lecture notes and Recall turns them into a drawer of question cards. You answer each one in your own words and it grades you against your notes. Cards you miss come back sooner; cards you know move up a drawer and retire. Questions are written by a Llama model on Groq; grading runs locally, in Elixir, with a small sentence model and a scoring line fitted to answers that teaching assistants graded by hand.
+Paste your lecture notes and Recall turns them into a drawer of question cards. You answer each one in your own words and it grades you against your notes. Cards you miss come back sooner; cards you know move up a drawer and retire. Questions are written by an open model (gpt-oss-120b) on Groq; grading runs locally, in Elixir, with a small sentence model and a scoring line fitted to answers that teaching assistants graded by hand.
 
 [![pipeline](https://github.com/evannwilsonn/recall/actions/workflows/pipeline.yml/badge.svg)](https://github.com/evannwilsonn/recall/actions/workflows/pipeline.yml)
 
@@ -28,7 +28,7 @@ The grader is fitted and tested on the [Mohler short-answer grading set](https:/
 ## 4. Model
 
 ```
-notes ─► Groq (Llama 3.3 70B, JSON) ─► cards: prompt, answer, quote checked against the notes
+notes ─► Groq (gpt-oss-120b, JSON) ─► cards: prompt, answer, quote checked against the notes
       └► no key or over budget ─► cards from the notes' own sentences ("What is…?", fill the gap)
 
 your answer ─┬► MiniLM embedding ─┐
@@ -37,7 +37,7 @@ card answer ─┘                    ├► cosine "meaning" ┐
                  length ratio ─────┘                   ┘
 ```
 
-- **Writing:** with a `GROQ_API_KEY`, `llama-3.3-70b-versatile` is told to use only the notes, treat them as data rather than instructions, and return JSON cards with a supporting quote. Each card is checked: the prompt and answer must be present, and a quote is kept only if it really is in the notes. Without a key, or past the rate limit (3 decks a minute per visitor, 25 overall), a plain-Elixir writer turns defining sentences ("A hash table is…") into "What is a hash table?" and blanks out a recurring key word in the rest.
+- **Writing:** with a `GROQ_API_KEY`, `openai/gpt-oss-120b` (set by `GROQ_MODEL`; Llama 3.3 70B was the first choice until Groq retired it in August 2026) is told to use only the notes, treat them as data rather than instructions, and return JSON cards with a supporting quote. Each card is checked: the prompt and answer must be present, and a quote is kept only if it really is in the notes. Without a key, or past the rate limit (3 decks a minute per visitor, 25 overall), a plain-Elixir writer turns defining sentences ("A hash table is…") into "What is a hash table?" and blanks out a recurring key word in the rest.
 - **Grading:** `sentence-transformers/all-MiniLM-L6-v2` runs in Elixir through Bumblebee and EXLA, behind an `Nx.Serving` that batches concurrent requests. Three features (meaning, coverage, length) go into a straight line fitted by least squares (with a touch of ridge) on the training questions. The band cut-offs are chosen on the validation questions to maximise balanced accuracy.
 - **Scheduling:** Leitner boxes counted in turns. Right moves a card up a drawer, partly keeps it, not yet sends it back to drawer 1, and missed cards come back two answers later. A card right in drawer 3 is learned. The deck is saved in the browser and sent back when the page reconnects; nothing about your notes is stored on the server.
 
