@@ -49,8 +49,7 @@ if config_env() == :prod do
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") || Base.encode64(:crypto.strong_rand_bytes(48))
 
-  # Hugging Face Spaces sets SPACE_HOST to the app's own address.
-  host = System.get_env("PHX_HOST") || System.get_env("SPACE_HOST") || "localhost"
+  host = System.get_env("PHX_HOST") || "localhost"
 
   config :recall, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -61,7 +60,10 @@ if config_env() == :prod do
       # and binding :: there fails with :eafnosupport.
       ip: {0, 0, 0, 0}
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    # The public address isn't known until the host assigns it (Cloud Run gives each service its
+    # own *.run.app name), so LiveView accepts sockets from the same host the page came from.
+    check_origin: :conn
 
   # ## SSL Support
   #

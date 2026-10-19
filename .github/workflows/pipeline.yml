@@ -1,10 +1,10 @@
 # Recall's pipeline: format check, compile with warnings as errors, the test suite (which loads
 # MiniLM, so its weights are cached between runs), then build the image, prove it starts
-# and serves, publish it to GitHub's container registry, and point the Hugging Face Space at it.
+# and serves, publish it to GitHub's container registry, and deploy it to Google Cloud Run.
 # Pull requests run the checks and the image build, nothing that publishes.
 #
-# The Hugging Face step runs once the repository has a variable HF_SPACE (like "name/recall") and a
-# secret HF_TOKEN (a write token). The Space pulls the image from GHCR, so the package must be public.
+# The Cloud Run step runs once the repository has the variables GCP_PROJECT, GCP_WIF_PROVIDER and
+# GCP_DEPLOYER (printed by cloudrun-setup.sh in the conveyor repo). It logs in without a stored key, through workload identity.
 name: pipeline
 
 on:
@@ -118,44 +118,49 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
 
-  space:
+  deploy:
     needs: image
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.HF_SPACE != ''
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT != ''
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGION: us-east1
+      AR_IMAGE: us-east1-docker.pkg.dev/${{ vars.GCP_PROJECT }}/apps/recall
     steps:
-      - name: Publish to Hugging Face
-        # The Space holds two files: a Dockerfile that starts from this commit's image, and the
-        # card Hugging Face reads its settings from. Pushing them makes the Space restart on it.
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ vars.HF_SPACE }}
-        run: |
-          test -n "$HF_TOKEN" || { echo "HF_TOKEN secret is missing"; exit 1; }
-          mkdir space && cd space
-          SHA="${GITHUB_SHA::7}"
-          echo "FROM $IMAGE:$SHA" > Dockerfile
-          cat > README.md <<'CARD'
-          ---
-          title: Recall
-          emoji: 🗂️
-          colorFrom: yellow
-          colorTo: red
-          sdk: docker
-          app_port: 7860
-          pinned: false
-          short_description: Study your notes with graded questions.
-          ---
+      # Keyless: GitHub vouches for this repository and Google lets it act as the deployer.
+      - name: Log in to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER }}
+      - uses: google-github-actions/setup-gcloud@v2
 
-          Built and published by https://github.com/${{ github.repository }}. This Space runs the image
-          from GitHub's container registry; the code, tests and evaluation live in that repository.
-          CARD
-          # Create the Space on the first run (409 means it already exists).
-          code=$(curl -s -o create.json -w '%{http_code}' -X POST https://huggingface.co/api/repos/create \
-            -H "Authorization: Bearer $HF_TOKEN" -H "Content-Type: application/json" \
-            -d "{\"type\":\"space\",\"name\":\"${HF_SPACE#*/}\",\"sdk\":\"docker\",\"private\":false}")
-          case "$code" in 200|201|409) ;; *) cat create.json; exit 1 ;; esac
-          rm create.json
-          git init -q -b main
-          git -c user.name=pipeline -c user.email=pipeline@users.noreply.github.com add .
-          git -c user.name=pipeline -c user.email=pipeline@users.noreply.github.com commit -qm "Deploy $SHA"
-          git push -f "https://hf:$HF_TOKEN@huggingface.co/spaces/$HF_SPACE" main
+      - name: Copy the image to Google Cloud
+        # Cloud Run only runs images from Google's own registry, so this commit's tested image is
+        # copied there from GHCR rather than built again.
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+          docker pull "$IMAGE:$SHA"
+          docker tag "$IMAGE:$SHA" "$AR_IMAGE:$SHA"
+          docker push "$AR_IMAGE:$SHA"
+
+      - name: Publish to Cloud Run
+        # Scales to zero when nobody is using it; capped so a traffic spike can't run up a bill.
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          # The Groq key, if the repo has one, rides along as an environment variable.
+          extra=""
+          if [ -n "$GROQ_API_KEY" ]; then extra="--update-env-vars=GROQ_API_KEY=$GROQ_API_KEY"; fi
+          gcloud run deploy recall --image "$AR_IMAGE:$SHA" --region "$REGION" \
+            --port 7860 --memory 2Gi --cpu 1 --cpu-boost \
+            --min-instances 0 --max-instances 2 --timeout 3600 \
+            --allow-unauthenticated --quiet $extra
+          url=$(gcloud run services describe recall --region "$REGION" --format 'value(status.url)')
+          echo "Live at $url"
+          for i in $(seq 1 30); do curl -fs "$url/" -o page.html && break; sleep 4; done
+          grep -q "<title" page.html

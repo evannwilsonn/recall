@@ -4,7 +4,7 @@ Paste your lecture notes and Recall turns them into a drawer of question cards. 
 
 [![pipeline](https://github.com/evannwilsonn/recall/actions/workflows/pipeline.yml/badge.svg)](https://github.com/evannwilsonn/recall/actions/workflows/pipeline.yml)
 
-**Live demo:** a Hugging Face Space, deployed from `main` by the pipeline (see [Deployment](#7-deployment)).
+**Live demo:** on Google Cloud Run, deployed from `main` by the pipeline (see [Deployment](#7-deployment)).
 
 Project 13b of my AI project roadmap, the capstone, built three times in a language I hadn't used before. The other two are [Lure](https://github.com/evannwilsonn/lure) and [Squiggle](https://github.com/evannwilsonn/squiggle).
 
@@ -75,12 +75,12 @@ It waves through 1 of 29 wrong answers, which is the mistake that matters most f
 ```
 push to main ─► check: format, compile --warnings-as-errors, mix test
               └► image: docker build ─► smoke test on :7860 (page + framing header) ─► ghcr.io/evannwilsonn/recall
-                                                                                       └► Hugging Face Space
+                                                                                       └► Google Cloud Run
 ```
 
 - **Container:** a Phoenix release on Debian slim, uid 1000, port 7860, with MiniLM's weights baked in at build time (`BUMBLEBEE_OFFLINE=true`). The fitted grader is `priv/model/grader.json`.
-- **Groq key:** set `GROQ_API_KEY` as a secret in the Space's settings. Without it the app still works, with questions from the notes' own sentences.
-- **Space:** the pipeline's last job pushes a one-line Dockerfile (`FROM ghcr.io/evannwilsonn/recall:<commit>`) and the Space card. It runs once the repo has a variable `HF_SPACE` (like `name/recall`) and a secret `HF_TOKEN`, and needs the GHCR package to be public.
+- **Groq key:** set `GROQ_API_KEY` as a GitHub Actions secret in this repo and the deploy passes it to Cloud Run. Without it the app still works, with questions from the notes' own sentences.
+- **Cloud Run:** the pipeline's last job copies this commit's tested image from GHCR to Google's registry and deploys it to Cloud Run in us-east1, with 2 GB of memory and up to 2 instances. It scales to zero when nobody's using it. It logs in to Google through workload identity, so no key is stored anywhere; the one-time setup is `cloudrun-setup.sh` in [Conveyor](https://github.com/evannwilsonn/conveyor), and the job runs once the repo has the variables it prints. Hugging Face Spaces was the first plan, but Docker Spaces now need a paid account.
 - **Pipeline board:** the run shows up on [Conveyor](https://evannwilsonn.github.io/conveyor/).
 
 ## Reproducing the numbers
