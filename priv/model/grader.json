@@ -1,0 +1,19 @@
+{
+  "features": [
+    "bias",
+    "meaning",
+    "coverage",
+    "length"
+  ],
+  "weights": [
+    2.628343181642789,
+    1.669046844348205,
+    0.8752468126421166,
+    0.4067245872274958
+  ],
+  "cutoffs": {
+    "partly": 3.85,
+    "right": 4.1000000000000005
+  },
+  "method": "meaning + coverage + length"
+}

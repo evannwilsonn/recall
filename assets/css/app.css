@@ -1,0 +1,175 @@
+/* See the Tailwind configuration guide for advanced usage
+   https://tailwindcss.com/docs/configuration */
+
+@import "tailwindcss" source(none);
+@import "phoenix-colocated/recall/colocated.css";
+@source "../css";
+@source "../js";
+@source "../../lib/recall_web";
+/* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
+@source "../../_build/dev/phoenix-colocated/recall/*/";
+
+/* A Tailwind plugin that makes "hero-#{ICON}" classes available.
+   The heroicons installation itself is managed by your mix.exs */
+@plugin "../vendor/heroicons";
+
+
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+[data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* ── Recall: a library card catalogue ─────────────────────────────────────────
+   Manila index cards with a red head rule and pale blue lines, typed in a typewriter face,
+   filed in oak drawers with brass label plates, and marked with rubber date-due stamps. */
+
+:root {
+  --desk: #e8dcc3;
+  --card: #fbf4e2;
+  --card-edge: #e2d3ad;
+  --rule: rgba(92, 140, 178, 0.30);
+  --head-rule: #c6493a;
+  --ink: #2a221b;
+  --muted: #6a5b4a;
+  --oak: #6b4527;
+  --oak-light: #8a5e39;
+  --brass: #b8955a;
+  --brass-ink: #3a2a14;
+  --stamp: #b4362b;
+  --got: #2f6b45;
+  --partly: #9a5e12;
+  --lift: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 14px 28px -18px rgba(60, 40, 20, 0.55);
+  --serif: "Source Serif 4", Georgia, serif;
+  --display: "Fraunces", Georgia, serif;
+  --type: "Courier Prime", "Courier New", monospace;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --desk: #17120d;
+  --card: #2a2219;
+  --card-edge: #3b3024;
+  --rule: rgba(120, 160, 195, 0.16);
+  --head-rule: #d9604f;
+  --ink: #f1e7d2;
+  --muted: #b9a88f;
+  --oak: #3d2716;
+  --oak-light: #573922;
+  --brass: #c9a86c;
+  --brass-ink: #23180a;
+  --stamp: #ec7a64;
+  --got: #7cc596;
+  --partly: #e2a656;
+  --lift: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 16px 30px -18px rgba(0, 0, 0, 0.85);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box }
+body { margin: 0; background: var(--desk); color: var(--ink); font: 400 17px/1.6 var(--serif); -webkit-font-smoothing: antialiased }
+a { color: var(--stamp); text-underline-offset: 3px }
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 700; letter-spacing: -0.01em }
+.mono { font-family: var(--type); font-size: 0.85em }
+.label { display: block; font-family: var(--type); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 4px }
+.fine { font-size: 0.9rem; color: var(--muted) }
+.error { color: var(--stamp); margin: 10px 0 0 }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap }
+
+.desk { max-width: 980px; margin: 0 auto; padding: 22px 24px 60px }
+
+.top { display: flex; align-items: center; gap: 16px; padding-bottom: 18px; margin-bottom: 34px; border-bottom: 2px solid var(--oak) }
+.brand { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-size: 1.9rem; font-weight: 700; color: var(--ink); text-decoration: none }
+.drawer-pull { width: 34px; height: 22px; border-radius: 4px; background: linear-gradient(var(--brass), #8d6d38); box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18); position: relative }
+.drawer-pull::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 5px; height: 4px; border-radius: 2px; background: var(--brass-ink); opacity: 0.6 }
+.tag-line { font-family: var(--type); color: var(--muted); font-size: 0.9rem }
+.lamp { margin-left: auto; font: 700 0.8rem var(--type); text-transform: uppercase; letter-spacing: 0.12em; background: var(--brass); color: var(--brass-ink); border: 0; border-radius: 3px; padding: 8px 14px; cursor: pointer }
+
+button { font: inherit; cursor: pointer }
+.stamp-btn {
+  font: 700 0.95rem var(--type); text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--stamp); background: transparent; border: 2.5px solid var(--stamp); border-radius: 6px;
+  padding: 10px 18px; transform: rotate(-1.2deg);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1), background 0.2s, color 0.2s;
+}
+.stamp-btn:hover:not(:disabled) { background: var(--stamp); color: var(--card); transform: rotate(0) scale(1.02) }
+.stamp-btn:active:not(:disabled) { transform: scale(0.97) }
+.stamp-btn:disabled { opacity: 0.6; cursor: progress }
+.ghost { font: 400 0.95rem var(--type); background: transparent; color: var(--ink); border: 1.5px dashed var(--muted); border-radius: 4px; padding: 8px 14px }
+.ghost:hover { border-style: solid }
+:focus-visible { outline: 2.5px solid var(--stamp); outline-offset: 2px }
+
+/* the index card */
+.card {
+  background-color: var(--card);
+  background-image: linear-gradient(transparent 0, transparent 54px, var(--head-rule) 54px, var(--head-rule) 56px, transparent 56px),
+                    repeating-linear-gradient(transparent 0, transparent 31px, var(--rule) 31px, var(--rule) 32px);
+  background-position: 0 0, 0 56px;
+  border: 1px solid var(--card-edge); border-radius: 4px; box-shadow: var(--lift);
+  padding: 18px 28px 26px; position: relative;
+}
+textarea {
+  width: 100%; font: 400 1rem/1.6 var(--type); color: var(--ink); background: transparent;
+  border: 0; border-bottom: 1.5px solid var(--muted); resize: vertical; padding: 6px 0; margin-bottom: 14px;
+}
+textarea:focus { outline: none; border-bottom-color: var(--stamp) }
+
+.intake { display: grid; gap: 26px }
+.intro { max-width: 640px }
+.intro h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.08; margin-bottom: 14px }
+.notes .label { line-height: 38px; margin-bottom: 12px }
+.notes textarea { background-image: repeating-linear-gradient(transparent 0, transparent 25px, var(--rule) 25px, var(--rule) 26px); line-height: 26px; min-height: 300px; border: 0 }
+.notes .row { justify-content: space-between; margin-bottom: 14px }
+.count { color: var(--muted) }
+
+/* drawers = progress */
+.drawers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 10px; background: linear-gradient(var(--oak-light), var(--oak)); border-radius: 6px; margin-bottom: 26px; box-shadow: var(--lift) }
+.drawer { position: relative; background: rgba(0, 0, 0, 0.18); border-radius: 4px; padding: 10px 10px 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden; box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3) }
+.plate { font: 700 0.72rem var(--type); text-transform: uppercase; letter-spacing: 0.1em; background: var(--brass); color: var(--brass-ink); padding: 2px 8px; border-radius: 2px; white-space: nowrap }
+.drawer .n { color: #f5ead2; font-size: 1.3rem }
+.drawer .fill { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--brass); transition: width 0.6s cubic-bezier(0.32, 0.72, 0, 1) }
+
+.study { display: grid; gap: 0 }
+.index-card { min-height: 320px }
+.card-head { display: flex; justify-content: space-between; color: var(--muted); height: 38px; align-items: center }
+.prompt { font-family: var(--type); font-weight: 700; font-size: clamp(1.15rem, 2.6vw, 1.45rem); line-height: 32px; margin: 18px 0 18px }
+.index-card .row { margin-top: 4px }
+
+.result { position: relative; padding-top: 4px }
+.result p { margin: 0 0 12px; font-family: var(--type); line-height: 32px }
+.result .label { display: inline; margin-right: 8px }
+.rubber {
+  position: absolute; right: 0; top: -70px; font: 700 1.25rem var(--type); text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--stamp); border: 3px double currentColor; border-radius: 6px; padding: 4px 14px; transform: rotate(-8deg);
+  opacity: 0.88; mix-blend-mode: multiply; animation: thump 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+:root[data-theme="dark"] .rubber { mix-blend-mode: normal }
+.b-right .rubber { color: var(--got) }
+.b-partly .rubber { color: var(--partly) }
+.done .rubber { position: static; display: inline-block; color: var(--got); margin-top: 20px }
+@keyframes thump { from { transform: rotate(-8deg) scale(1.6); opacity: 0 } }
+.chip { display: inline-block; margin: 0 6px 0 0; padding: 0 8px; line-height: 24px; border: 1px solid var(--muted); border-radius: 3px; font-size: 0.85rem }
+.score { color: var(--muted) }
+.quote { margin: 18px 0 0; padding: 10px 16px; border-left: 3px solid var(--head-rule); font-style: italic; color: var(--muted); background: rgba(0, 0, 0, 0.03) }
+.foot-row { justify-content: space-between; margin-top: 16px }
+.writer { color: var(--muted) }
+
+.how { margin-top: 56px; padding-top: 22px; border-top: 2px solid var(--oak) }
+.how h2 { font-size: 1.6rem; margin-bottom: 10px }
+.how p { max-width: 720px }
+.ledger { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.95rem }
+.ledger th { font: 700 0.72rem var(--type); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); text-align: left; border-bottom: 2px solid var(--ink); padding: 6px 8px }
+.ledger td { padding: 8px; border-bottom: 1px dashed var(--card-edge) }
+.ledger tr.shipped td { font-weight: 600; background: rgba(184, 149, 90, 0.16) }
+.foot { margin-top: 40px; font-size: 0.88rem; color: var(--muted) }
+
+@media (max-width: 640px) {
+  .desk { padding: 14px 16px 40px }
+  .tag-line { display: none }
+  .drawers { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .card { padding: 14px 16px 20px }
+  .rubber { top: -56px; font-size: 1rem }
+  .ledger { font-size: 0.82rem }
+  .ledger th, .ledger td { padding: 6px 4px }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }

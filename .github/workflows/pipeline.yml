@@ -1,0 +1,161 @@
+# Recall's pipeline: format check, compile with warnings as errors, the test suite (which loads
+# MiniLM, so its weights are cached between runs), then build the image, prove it starts
+# and serves, publish it to GitHub's container registry, and point the Hugging Face Space at it.
+# Pull requests run the checks and the image build, nothing that publishes.
+#
+# The Hugging Face step runs once the repository has a variable HF_SPACE (like "name/recall") and a
+# secret HF_TOKEN (a write token). The Space pulls the image from GHCR, so the package must be public.
+name: pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/recall
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18"
+
+      - name: Cache dependencies and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-${{ hashFiles('mix.lock') }}
+
+      - name: Cache MiniLM's weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bumblebee
+          key: bumblebee-minilm-v1
+
+      - name: Dependencies
+        run: mix deps.get
+
+      - name: Formatting
+        run: mix format --check-formatted
+
+      - name: Build
+        run: mix compile --warnings-as-errors
+
+      - name: Tests
+        run: mix test
+
+  image:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        # Runs the way Hugging Face runs it: port 7860, no secrets, no network needed after start.
+        run: |
+          tag=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          docker run -d --name recall -p 7860:7860 -e SPACE_HOST=localhost "$tag"
+          for i in $(seq 1 60); do curl -fs localhost:7860/ -o page.html && break; sleep 2; done
+          grep -q "Study what you actually wrote down" page.html
+          curl -sI localhost:7860/ | tee headers.txt
+          grep -qi "frame-ancestors 'self' https://huggingface.co" headers.txt
+          docker image inspect "$tag" --format 'image size: {{.Size}} bytes'
+          docker logs recall
+
+      - name: Log in to GitHub's container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+
+  space:
+    needs: image
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.HF_SPACE != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish to Hugging Face
+        # The Space holds two files: a Dockerfile that starts from this commit's image, and the
+        # card Hugging Face reads its settings from. Pushing them makes the Space restart on it.
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          test -n "$HF_TOKEN" || { echo "HF_TOKEN secret is missing"; exit 1; }
+          mkdir space && cd space
+          SHA="${GITHUB_SHA::7}"
+          echo "FROM $IMAGE:$SHA" > Dockerfile
+          cat > README.md <<'CARD'
+          ---
+          title: Recall
+          emoji: 🗂️
+          colorFrom: yellow
+          colorTo: red
+          sdk: docker
+          app_port: 7860
+          pinned: false
+          short_description: Study your notes with graded questions.
+          ---
+
+          Built and published by https://github.com/${{ github.repository }}. This Space runs the image
+          from GitHub's container registry; the code, tests and evaluation live in that repository.
+          CARD
+          # Create the Space on the first run (409 means it already exists).
+          code=$(curl -s -o create.json -w '%{http_code}' -X POST https://huggingface.co/api/repos/create \
+            -H "Authorization: Bearer $HF_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"type\":\"space\",\"name\":\"${HF_SPACE#*/}\",\"sdk\":\"docker\",\"private\":false}")
+          case "$code" in 200|201|409) ;; *) cat create.json; exit 1 ;; esac
+          rm create.json
+          git init -q -b main
+          git -c user.name=pipeline -c user.email=pipeline@users.noreply.github.com add .
+          git -c user.name=pipeline -c user.email=pipeline@users.noreply.github.com commit -qm "Deploy $SHA"
+          git push -f "https://hf:$HF_TOKEN@huggingface.co/spaces/$HF_SPACE" main

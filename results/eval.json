@@ -1,0 +1,138 @@
+{
+  "shipped": {
+    "name": "meaning + coverage + length",
+    "weights": [
+      2.628343181642789,
+      1.669046844348205,
+      0.8752468126421166,
+      0.4067245872274958
+    ],
+    "cutoffs": {
+      "partly": 3.85,
+      "right": 4.1000000000000005
+    }
+  },
+  "confusion": [
+    {
+      "people": "right",
+      "grader": {
+        "right": 215,
+        "partly": 44,
+        "not_yet": 55
+      }
+    },
+    {
+      "people": "partly",
+      "grader": {
+        "right": 28,
+        "partly": 18,
+        "not_yet": 69
+      }
+    },
+    {
+      "people": "not_yet",
+      "grader": {
+        "right": 1,
+        "partly": 3,
+        "not_yet": 25
+      }
+    }
+  ],
+  "examples": [
+    {
+      "reference": "push and pop",
+      "question": "What are the two main functions defined by a stack?",
+      "answer": "push ( add an element ) pop ( remove an element )",
+      "people": 5.0,
+      "grader": 4.87
+    },
+    {
+      "reference": "The last element in a circular linked list points to the head of the list.",
+      "question": "What is the difference between a circular linked list and a basic linked list?",
+      "answer": "No Node in a circular linked list contains NULL, the last Node points pack to a Node within the list.",
+      "people": 5.0,
+      "grader": 4.73
+    },
+    {
+      "reference": "Function members and data members.",
+      "question": "What are the elements typically included in a class definition?",
+      "answer": "Data variables and Functions, Data members",
+      "people": 5.0,
+      "grader": 5.0
+    },
+    {
+      "reference": "File scope.",
+      "question": "What is the scope of global variables?",
+      "answer": "throught the programm",
+      "people": 4.5,
+      "grader": 3.43
+    },
+    {
+      "reference": "The testing stage can influence both the coding stage ( phase 5 ) and the solution refinement stage ( phase 7 )",
+      "question": "What stages in the software life cycle are influenced by the testing stage?",
+      "answer": "Removing logical errors, testing for valid data, random data and actual data.",
+      "people": 1.0,
+      "grader": 3.35
+    },
+    {
+      "reference": "N ( the length of the array ) operations achieved for a sorted array.",
+      "question": "What is the number of operations for insertion sort under a best-case scenario, and what is the best-case scenario?",
+      "answer": "1 operation. the best case scenario s where it is already sorted and does one comparision.",
+      "people": 3.0,
+      "grader": 3.95
+    }
+  ],
+  "dataset": {
+    "name": "Mohler short-answer grading (2011), CC BY 4.0",
+    "split": {
+      "valid": 360,
+      "test": 458,
+      "train": 1455
+    },
+    "questions": 81,
+    "answers": 2273,
+    "human_bands": "got it: 4 or more of 5; partly: 2.5 up to 4; not yet: under 2.5"
+  },
+  "models": [
+    {
+      "name": "average score",
+      "test": {
+        "rmse": 1.1017783067739182,
+        "pearson": 1.8447153907246298e-16,
+        "band_accuracy": 0.6855895196506551,
+        "balanced": 0.3333333333333333
+      },
+      "valid_rmse": 1.0393322586698908
+    },
+    {
+      "name": "word coverage",
+      "test": {
+        "rmse": 0.9141680123950433,
+        "pearson": 0.5660375517009503,
+        "band_accuracy": 0.6615720524017468,
+        "balanced": 0.5947427560105297
+      },
+      "valid_rmse": 0.9217985644529083
+    },
+    {
+      "name": "MiniLM meaning",
+      "test": {
+        "rmse": 0.9519779444063521,
+        "pearson": 0.5041151638818503,
+        "band_accuracy": 0.48253275109170307,
+        "balanced": 0.529737678931235
+      },
+      "valid_rmse": 0.9191191312490316
+    },
+    {
+      "name": "meaning + coverage + length",
+      "test": {
+        "rmse": 0.9001433741108587,
+        "pearson": 0.5802612603960434,
+        "band_accuracy": 0.5633187772925764,
+        "balanced": 0.5677680268146181
+      },
+      "valid_rmse": 0.8662880746030647
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+_build
+deps
+.git
+.elixir_ls
+priv/data
+priv/static/assets
+test
+*.md
+results
