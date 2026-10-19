@@ -148,7 +148,7 @@ jobs:
           docker push "$AR_IMAGE:$SHA"
 
       - name: Publish to Cloud Run
-        # Keeps one instance always warm so the app never sleeps; capped so a traffic spike can't run up a bill.
+        # Scales to zero when nobody is using it; capped so a traffic spike can't run up a bill.
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
@@ -158,7 +158,7 @@ jobs:
           if [ -n "$GROQ_API_KEY" ]; then extra="--update-env-vars=GROQ_API_KEY=$GROQ_API_KEY"; fi
           gcloud run deploy recall --image "$AR_IMAGE:$SHA" --region "$REGION" \
             --port 7860 --memory 2Gi --cpu 1 --cpu-boost \
-            --min-instances 1 --max-instances 2 --timeout 3600 \
+            --min-instances 0 --max-instances 2 --timeout 3600 \
             --allow-unauthenticated --quiet $extra
           url=$(gcloud run services describe recall --region "$REGION" --format 'value(status.url)')
           echo "Live at $url"

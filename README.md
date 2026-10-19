@@ -80,7 +80,7 @@ push to main ─► check: format, compile --warnings-as-errors, mix test
 
 - **Container:** a Phoenix release on Debian slim, uid 1000, port 7860, with MiniLM's weights baked in at build time (`BUMBLEBEE_OFFLINE=true`). The fitted grader is `priv/model/grader.json`.
 - **Groq key:** set `GROQ_API_KEY` as a GitHub Actions secret in this repo and the deploy passes it to Cloud Run. Without it the app still works, with questions from the notes' own sentences.
-- **Cloud Run:** the pipeline's last job copies this commit's tested image from GHCR to Google's registry and deploys it to Cloud Run in us-east1, with 2 GB of memory and up to 2 instances. One instance stays warm at all times, so the app never cold-starts. It logs in to Google through workload identity, so no key is stored anywhere; the one-time setup is `cloudrun-setup.sh` in [Conveyor](https://github.com/evannwilsonn/conveyor), and the job runs once the repo has the variables it prints. Hugging Face Spaces was the first plan, but Docker Spaces now need a paid account.
+- **Cloud Run:** the pipeline's last job copies this commit's tested image from GHCR to Google's registry and deploys it to Cloud Run in us-east1, with 2 GB of memory and up to 2 instances. It scales to zero when nobody's using it. It logs in to Google through workload identity, so no key is stored anywhere; the one-time setup is `cloudrun-setup.sh` in [Conveyor](https://github.com/evannwilsonn/conveyor), and the job runs once the repo has the variables it prints. Hugging Face Spaces was the first plan, but Docker Spaces now need a paid account.
 - **Pipeline board:** the run shows up on [Conveyor](https://evannwilsonn.github.io/conveyor/).
 
 ## Reproducing the numbers
