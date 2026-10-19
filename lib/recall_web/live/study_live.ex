@@ -199,8 +199,8 @@ defmodule RecallWeb.StudyLive do
       <div id="store" phx-hook="DeckStore"></div>
       <main class="desk">
         <header class="top">
-          <a href="/" class="brand"><span class="drawer-pull" aria-hidden="true"></span>Recall</a>
-          <span class="tag-line">a card catalogue for your notes</span>
+          <a href="/" class="brand">Recall</a>
+          <span class="tag-line">what you answer, you keep.</span>
           <button
             id="theme"
             class="lamp"
@@ -208,36 +208,43 @@ defmodule RecallWeb.StudyLive do
             phx-click={JS.dispatch("phx:toggle-theme")}
             aria-label="Switch between light and dark"
           >
-            Lamp
+            <span class="lamp-dot" aria-hidden="true"></span>
+            <span class="lamp-light">Paper</span><span class="lamp-dark">Ink</span>
           </button>
         </header>
 
         <%= if @deck == nil do %>
+          <section class="hero">
+            <div class="hero-head">
+              <h1>Study what you actually wrote down.</h1>
+              <p class="caption hero-caption">
+                <span>Retention over 30 days</span><span>each review fades slower</span>
+              </p>
+            </div>
+            <.hero_chart />
+          </section>
           <section class="intake">
             <div class="intro">
-              <p class="call-no mono">QA 76.9 · R43 · 2026</p>
-              <h1>Study what you actually wrote down.</h1>
               <p>
                 Paste notes from a lecture or a chapter. Recall files them as question cards, you
                 answer in your own words, and it grades you against the notes.
               </p>
               <ol class="steps">
                 <li class="step">
-                  <span class="mono">No. 1</span><b>Paste your notes</b><span>An open model on Groq writes questions from them, and only them.</span>
+                  <span class="caption">01</span><b>Paste your notes</b><span>An open model on Groq writes questions from them, and only them.</span>
                 </li>
                 <li class="step">
-                  <span class="mono">No. 2</span><b>Answer in your words</b><span>MiniLM, running in Elixir, grades the meaning.</span>
+                  <span class="caption">02</span><b>Answer in your words</b><span>MiniLM, running in Elixir, grades the meaning.</span>
                 </li>
                 <li class="step">
-                  <span class="mono">No. 3</span><b>Misses come back</b><span>Right answers move up a drawer until they retire.</span>
+                  <span class="caption">03</span><b>Misses come back</b><span>Right answers move up a drawer until they retire.</span>
                 </li>
               </ol>
+              <p class="caption flow">
+                Notes → question cards → graded answers · Elixir · MiniLM · Groq
+              </p>
             </div>
             <div class="cabinet">
-              <div class="drawer-front" aria-hidden="true">
-                <span class="label-holder"><span>Notes · unfiled</span></span>
-                <span class="pull"></span>
-              </div>
               <form id="notes-form" class="card notes" phx-change="notes" phx-submit="write">
                 <label for="notes-text" class="label">Your notes</label>
                 <textarea
@@ -263,21 +270,21 @@ defmodule RecallWeb.StudyLive do
           </section>
         <% else %>
           <section class="study">
-            <.drawers deck={@deck} />
+            <.drawers deck={@deck} current={@card && @card.id} />
             <div class="desk-row">
               <div class="card-col">
                 <%= if @card do %>
                   <article id="card" class="card index-card">
                     <div class="card-head">
-                      <span class="mono">No. {@card.id}</span>
-                      <span class="mono">drawer {@card.box} · seen {@card.seen}</span>
+                      <span class="caption">Entry no. {@card.id}</span>
+                      <span class="caption">drawer {@card.box} · seen {@card.seen}</span>
                     </div>
                     <h2 class="prompt">{@card.prompt}</h2>
 
                     <%= cond do %>
                       <% @graded -> %>
                         <div id="graded" class={"result b-#{@graded.band}"}>
-                          <span class="rubber">{band_label(@graded.band)}</span>
+                          <span class="rubber"><i aria-hidden="true"></i>{band_label(@graded.band)}</span>
                           <p class="yours">
                             <span class="label">You wrote</span> {if @graded.answer == "",
                               do: "(nothing)",
@@ -366,7 +373,7 @@ defmodule RecallWeb.StudyLive do
                   </article>
                 <% else %>
                   <article id="done" class="card index-card done">
-                    <span class="rubber">Learned</span>
+                    <span class="rubber"><i aria-hidden="true"></i>Learned</span>
                     <h2 class="prompt">
                       All {length(@deck.cards)} cards learned in {@deck.turn} answers.
                     </h2>
@@ -376,14 +383,13 @@ defmodule RecallWeb.StudyLive do
                   </article>
                 <% end %>
               </div>
-              <aside id="slip" class="slip" aria-label="Date due slip: your answers so far">
-                <span class="slip-pocket" aria-hidden="true"></span>
-                <h3 class="mono">Date due</h3>
+              <aside id="slip" class="slip" aria-label="Review log: your answers so far">
+                <h3 class="caption">Review log</h3>
                 <ol>
                   <li :for={e <- @log} class={"s-#{e.band}"}>
                     <span class="mono">turn {e.turn}</span>
-                    <span class="mono">No. {e.id}</span>
-                    <span class="stamp-mini">{band_label(e.band)}</span>
+                    <span class="mono">no. {e.id}</span>
+                    <span class="stamp-mini"><i aria-hidden="true"></i>{band_label(e.band)}</span>
                   </li>
                   <li :if={@log == []} class="blank mono">no answers yet</li>
                 </ol>
@@ -450,31 +456,109 @@ defmodule RecallWeb.StudyLive do
   end
 
   attr :deck, Deck, required: true
+  attr :current, :integer, default: nil
 
+  # Progress as the thumbnail's retention chart: one slice of dots per card, filled to its
+  # drawer, with a red review mark over every card you've answered.
   defp drawers(assigns) do
-    assigns = assign(assigns, p: Deck.progress(assigns.deck))
+    cards = Enum.sort_by(assigns.deck.cards, & &1.id)
+    n = max(length(cards), 1)
+
+    assigns =
+      assign(assigns,
+        p: Deck.progress(assigns.deck),
+        cards: cards,
+        wide: max(div(72, n), 3),
+        narrow: max(div(36, n), 2)
+      )
 
     ~H"""
     <div id="drawers" class="drawers" aria-label="Progress">
-      <div
-        :for={
-          {label, n} <- [
-            {"Drawer 1", @p.box1},
-            {"Drawer 2", @p.box2},
-            {"Drawer 3", @p.box3},
-            {"Learned", @p.learned}
-          ]
-        }
-        class="drawer"
-      >
-        <span class="plate">{label}</span>
-        <span class="mono n">{n}</span>
-        <span
-          class="fill"
-          style={"width: #{if @p.total > 0, do: round(n / @p.total * 100), else: 0}%"}
-        ></span>
+      <div class="chart-head">
+        <span class="caption red">Reviews</span>
+        <span class="caption">retention by card · {@deck.turn} answers</span>
       </div>
+      <div
+        class="matrix"
+        style={"grid-template-columns: repeat(#{length(@cards)}, minmax(0, 1fr))"}
+        role="img"
+        aria-label={"#{@p.box1} in drawer 1, #{@p.box2} in drawer 2, #{@p.box3} in drawer 3, #{@p.learned} learned"}
+      >
+        <div
+          :for={c <- @cards}
+          class={["slice", c.seen > 0 && "seen", c.id == @current && "now"]}
+        >
+          <span class="mark">{if c.id == @current, do: "now", else: c.seen}</span>
+          <.slice box={c.box} per={@wide} class="wide" />
+          <.slice box={c.box} per={@narrow} class="narrow" />
+          <span class="tick"><span class="no">no. </span>{c.id}</span>
+        </div>
+      </div>
+      <ul class="counts">
+        <li
+          :for={
+            {label, n} <- [
+              {"Drawer 1", @p.box1},
+              {"Drawer 2", @p.box2},
+              {"Drawer 3", @p.box3},
+              {"Learned", @p.learned}
+            ]
+          }
+          class="drawer"
+        >
+          <span class="plate">{label}</span>
+          <span class="mono n">{n}</span>
+        </li>
+      </ul>
     </div>
+    """
+  end
+
+  attr :box, :integer, required: true
+  attr :per, :integer, required: true
+  attr :class, :string, required: true
+
+  defp slice(assigns) do
+    assigns = assign(assigns, g: RecallWeb.Retention.card_column(assigns.box, assigns.per))
+
+    ~H"""
+    <svg class={["dots", @class]} viewBox={"0 0 #{@g.w} #{@g.h}"} aria-hidden="true">
+      <path class="off" d={@g.off} />
+      <path class="on" d={@g.on} />
+      <path class="curve" d={@g.curve} />
+    </svg>
+    """
+  end
+
+  defp hero_chart(assigns) do
+    assigns = assign(assigns, wide: RecallWeb.Retention.hero(:wide))
+    assigns = assign(assigns, narrow: RecallWeb.Retention.hero(:narrow))
+
+    ~H"""
+    <figure class="retention" aria-hidden="true">
+      <svg
+        :for={{g, class} <- [{@wide, "wide"}, {@narrow, "narrow"}]}
+        class={["dots", class]}
+        viewBox={"0 0 #{g.w} #{g.h}"}
+      >
+        <text :if={class == "wide"} x={g.x0 - 16} y={g.yt - 30} text-anchor="end" class="red">
+          REVIEWS
+        </text>
+        <%= for r <- g.reviews do %>
+          <text x={r.x} y={g.yt - 30} text-anchor="middle" class="red num">{r.n}</text>
+          <circle cx={r.x} cy={g.yt - 18} r="4.2" class="marker" />
+          <line x1={r.x} y1={g.yt - 12} x2={r.x} y2={g.yb + 6} class="review" />
+        <% end %>
+        <path class="off" d={g.off} />
+        <path class="on" d={g.on} />
+        <path class="curve" d={g.curve} />
+        <line x1={g.x0} y1={g.yb + 14} x2={g.x1} y2={g.yb + 14} class="axis" />
+        <%= for t <- g.ticks do %>
+          <line x1={t.x} y1={g.yb + 14} x2={t.x} y2={g.yb + 20} class="axis" />
+          <text x={t.x} y={g.yb + 34} text-anchor="middle" class="day">day {t.day}</text>
+        <% end %>
+      </svg>
+    </figure>
     """
   end
 
